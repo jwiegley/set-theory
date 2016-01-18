@@ -1,4 +1,6 @@
 Require Export Lib.
+Require Export Coq.Classes.RelationClasses.
+Require Export Coq.Setoids.Setoid.
 
 Parameter set : Type.
 
@@ -13,19 +15,45 @@ Notation "X ⊆ Y" := (Subq X Y) (at level 69).
 
 Lemma Subq_refl : ∀ (A : set), A ⊆ A.
 Proof. compute. auto. Qed.
-
 Hint Resolve Subq_refl.
+
+Instance Subq_Refl : Reflexive Subq.
+Proof. exact Subq_refl. Qed.
 
 Lemma Subq_trans : ∀ (A B C : set), A ⊆ B → B ⊆ C → A ⊆ C.
 Proof. compute. auto. Qed.
-
 Hint Resolve Subq_trans.
+
+Instance Subq_Trans : Transitive Subq.
+Proof. exact Subq_trans. Qed.
+
+Definition set_equiv (A B : set) := A ⊆ B /\ B ⊆ A.
+
+Instance set_Equiv : Equivalence set_equiv.
+Proof.
+  constructor.
+  - intro x.
+    split; intros; auto.
+  - intros x y.
+    destruct 1.
+    split; intros; auto.
+  - intros x y z.
+    destruct 1, 1.
+    split; intros;
+    [ apply (Subq_trans x y z)
+    | apply (Subq_trans z y x) ]; auto.
+Qed.
+
+Add Parametric Relation : set set_equiv
+  reflexivity proved by (@Equivalence_Reflexive _ _ set_Equiv)
+  symmetry proved by (@Equivalence_Symmetric _ _ set_Equiv)
+  transitivity proved by (@Equivalence_Transitive _ _ set_Equiv)
+  as set_equiv_rel.
 
 (* Axiom 1 (Extensionality). Two sets X and Y are equal if they contain the
    same elements. *)
 
 Axiom extensionality : ∀ X Y : set, X ⊆ Y → Y ⊆ X → X = Y.
-
 Hint Resolve extensionality.
 
 Lemma extensionality_E : ∀ X Y : set, X = Y -> X ⊆ Y ∧ Y ⊆ X.
@@ -35,7 +63,7 @@ Proof.
     rewrite H. assumption.
 Qed.
 
-Hint Resolve extensionality.
+Hint Resolve extensionality_E.
 
 Ltac extension := apply extensionality; unfold Subq; intros.
 
@@ -81,10 +109,8 @@ Notation "{ a , b }" := (UPair a b) (at level 69).
 Theorem pair_agnostic : ∀ a b, {a, b} = {b, a}.
 Proof.
   intros.
-  pose extensionality.
-  specialize (e (UPair a b) (UPair b a)).
-  apply e; compute; intros;
-    apply UPair_E in H; inversion H; rewrite H0; auto.
+  apply (extensionality (UPair a b) (UPair b a));
+  intros x H; apply UPair_E in H; inversion H; rewrite H0; auto.
 Qed.
 
 Hint Resolve pair_agnostic.
